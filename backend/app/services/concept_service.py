@@ -4,6 +4,7 @@ from typing import List
 from app.models.concept import Concept
 from app.schemas.concept import ConceptCreate
 from app.ai.concept_graph import ConceptGraph
+from app.core.exceptions import ResourceNotFoundError
 
 
 class ConceptService:
@@ -30,12 +31,35 @@ class ConceptService:
         Returns:
             Created concept
         """
-        # Placeholder - will be implemented
-        raise NotImplementedError("Concept creation will be implemented")
+        concept = Concept(
+            name=concept_data.name,
+            description=concept_data.description,
+            difficulty_level=concept_data.difficulty_level,
+            prerequisite_id=concept_data.prerequisite_id,
+        )
+        self.db.add(concept)
+        self.db.commit()
+        self.db.refresh(concept)
+        return concept
+    
+    def get_concept(self, concept_id: int) -> Concept:
+        """
+        Get concept by ID.
+        
+        Args:
+            concept_id: Concept ID
+            
+        Returns:
+            Concept record
+        """
+        concept = self.db.query(Concept).filter(Concept.id == concept_id).first()
+        if not concept:
+            raise ResourceNotFoundError(f"Concept {concept_id} not found")
+        return concept
     
     def get_prerequisites(self, concept_id: int) -> List[Concept]:
         """
-        Get all prerequisite concepts (calls AI module).
+        Get all prerequisite concepts (walks the chain).
         
         Args:
             concept_id: Concept ID
@@ -43,8 +67,34 @@ class ConceptService:
         Returns:
             List of prerequisite concepts
         """
-        # Placeholder - will be implemented in Phase 2
-        raise NotImplementedError("Get prerequisites will be implemented in Phase 2")
+        concept = self.get_concept(concept_id)
+        prerequisites = []
+        current = concept
+        while current.prerequisite_id is not None:
+            prereq = self.db.query(Concept).filter(Concept.id == current.prerequisite_id).first()
+            if prereq is None or prereq in prerequisites:
+                break  # Prevent infinite loops
+            prerequisites.append(prereq)
+            current = prereq
+        return prerequisites
+    
+    def get_dependents(self, concept_id: int) -> List[Concept]:
+        """
+        Get all concepts that depend on this concept.
+        
+        Args:
+            concept_id: Concept ID
+            
+        Returns:
+            List of dependent concepts
+        """
+        # Make sure concept exists
+        self.get_concept(concept_id)
+        return (
+            self.db.query(Concept)
+            .filter(Concept.prerequisite_id == concept_id)
+            .all()
+        )
     
     def get_learning_path(self, student_id: int, target_concept_id: int) -> List[Concept]:
         """
@@ -57,5 +107,9 @@ class ConceptService:
         Returns:
             Ordered list of concepts forming learning path
         """
-        # Placeholder - will be implemented in Phase 2
-        raise NotImplementedError("Learning path generation will be implemented in Phase 2")
+        # Get prerequisites and return them in order
+        prerequisites = self.get_prerequisites(target_concept_id)
+        prerequisites.reverse()  # Start from the most fundamental
+        target = self.get_concept(target_concept_id)
+        prerequisites.append(target)
+        return prerequisites

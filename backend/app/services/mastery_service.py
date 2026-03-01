@@ -112,6 +112,22 @@ class MasteryService:
         # Current mastery is the prediction
         return mastery.p_l
     
+    def get_all_student_mastery(self, student_id: int) -> List[Mastery]:
+        """
+        Get all mastery records for a student.
+        
+        Args:
+            student_id: Student ID
+            
+        Returns:
+            List of mastery records
+        """
+        return (
+            self.db.query(Mastery)
+            .filter(Mastery.student_id == student_id)
+            .all()
+        )
+    
     def get_weak_concepts(self, student_id: int, threshold: float = 0.5) -> List[Dict]:
         """
         Get concepts where student has low mastery.

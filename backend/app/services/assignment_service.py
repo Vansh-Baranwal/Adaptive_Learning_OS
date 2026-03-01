@@ -1,10 +1,11 @@
-"""Assignment Service - Handles assignment submissions and rubric evaluation."""
+"""Assignment Service - Handles assignment CRUD and rubric evaluation."""
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 from app.models.assignment import Assignment
 from app.schemas.assignment import AssignmentCreate
 from app.ai.rubric_engine import RubricEngine
 from app.services.mastery_service import MasteryService
+from app.core.exceptions import ResourceNotFoundError
 
 
 class AssignmentService:
@@ -28,18 +29,29 @@ class AssignmentService:
         self.rubric_engine = rubric_engine
         self.mastery_service = mastery_service
     
-    def create_assignment(self, assignment_data: AssignmentCreate) -> Assignment:
+    def create_assignment(self, assignment_data: AssignmentCreate, teacher_id: int = None) -> Assignment:
         """
         Create a new assignment.
         
         Args:
             assignment_data: Assignment creation data
+            teacher_id: Override teacher_id (from current user)
             
         Returns:
             Created assignment
         """
-        # Placeholder - will be implemented
-        raise NotImplementedError("Assignment creation will be implemented")
+        assignment = Assignment(
+            title=assignment_data.title,
+            description=assignment_data.description,
+            rubric=assignment_data.rubric,
+            due_date=assignment_data.due_date,
+            concept_id=assignment_data.concept_id,
+            teacher_id=assignment_data.teacher_id,
+        )
+        self.db.add(assignment)
+        self.db.commit()
+        self.db.refresh(assignment)
+        return assignment
     
     def get_assignment(self, assignment_id: int) -> Assignment:
         """
@@ -51,32 +63,12 @@ class AssignmentService:
         Returns:
             Assignment record
         """
-        # Placeholder - will be implemented
-        raise NotImplementedError("Get assignment will be implemented")
+        assignment = self.db.query(Assignment).filter(Assignment.id == assignment_id).first()
+        if not assignment:
+            raise ResourceNotFoundError(f"Assignment {assignment_id} not found")
+        return assignment
     
-    def submit_assignment(self, assignment_id: int, student_id: int, content: str) -> dict:
-        """
-        Submit and evaluate an assignment using rubric engine.
-        
-        Flow:
-        1. Get assignment and rubric
-        2. Evaluate submission using RubricEngine
-        3. Save evaluation results
-        4. Optionally update mastery via MasteryService
-        5. Return evaluation results
-        
-        Args:
-            assignment_id: Assignment ID
-            student_id: Student ID
-            content: Student's submission content
-            
-        Returns:
-            Evaluation results with score and feedback
-        """
-        # Placeholder - will be implemented in Phase 3
-        raise NotImplementedError("Assignment submission will be implemented in Phase 3")
-    
-    def list_assignments(self, concept_id: Optional[int] = None) -> list:
+    def list_assignments(self, concept_id: Optional[int] = None) -> List[Assignment]:
         """
         List assignments, optionally filtered by concept.
         
@@ -86,5 +78,54 @@ class AssignmentService:
         Returns:
             List of assignments
         """
-        # Placeholder - will be implemented
-        raise NotImplementedError("List assignments will be implemented")
+        query = self.db.query(Assignment)
+        if concept_id is not None:
+            query = query.filter(Assignment.concept_id == concept_id)
+        return query.order_by(Assignment.created_at.desc()).all()
+    
+    def update_assignment(self, assignment_id: int, assignment_data: AssignmentCreate) -> Assignment:
+        """
+        Update an assignment.
+        
+        Args:
+            assignment_id: Assignment ID
+            assignment_data: Updated assignment data
+            
+        Returns:
+            Updated assignment
+        """
+        assignment = self.get_assignment(assignment_id)
+        assignment.title = assignment_data.title
+        assignment.description = assignment_data.description
+        assignment.rubric = assignment_data.rubric
+        assignment.due_date = assignment_data.due_date
+        assignment.concept_id = assignment_data.concept_id
+        self.db.commit()
+        self.db.refresh(assignment)
+        return assignment
+    
+    def delete_assignment(self, assignment_id: int) -> None:
+        """
+        Delete an assignment.
+        
+        Args:
+            assignment_id: Assignment ID
+        """
+        assignment = self.get_assignment(assignment_id)
+        self.db.delete(assignment)
+        self.db.commit()
+    
+    def submit_assignment(self, assignment_id: int, student_id: int, content: str) -> dict:
+        """
+        Submit and evaluate an assignment using rubric engine.
+        
+        Args:
+            assignment_id: Assignment ID
+            student_id: Student ID
+            content: Student's submission content
+            
+        Returns:
+            Evaluation results with score and feedback
+        """
+        # Placeholder - full rubric evaluation to be implemented in Phase 3
+        raise NotImplementedError("Assignment submission will be implemented in Phase 3")

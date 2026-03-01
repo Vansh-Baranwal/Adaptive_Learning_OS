@@ -23,6 +23,17 @@ app = FastAPI(
 )
 
 
+# Create database tables on startup
+@app.on_event("startup")
+async def startup_event():
+    """Create database tables if they don't exist."""
+    from app.db.session import engine
+    from app.models.base import Base
+    # Import all models so metadata is populated
+    from app.models import user, student, teacher, concept, assignment, attempt, mastery  # noqa: F401
+    Base.metadata.create_all(bind=engine)
+
+
 # Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
