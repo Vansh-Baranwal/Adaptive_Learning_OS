@@ -1,7 +1,7 @@
 """Unit tests for project structure validation.
 
 Tests that all required directories exist and configuration files are present and valid.
-Requirements: 5.1, 5.5, 5.6
+Requirements: 5.1, 5.5, 5.6, 6.1
 """
 import os
 import pytest
@@ -10,6 +10,8 @@ from pathlib import Path
 
 # Get the backend directory path
 BACKEND_DIR = Path(__file__).parent.parent.parent
+# Get the project root directory (parent of backend)
+PROJECT_ROOT = BACKEND_DIR.parent
 
 
 class TestDirectoryStructure:
@@ -277,3 +279,100 @@ class TestModuleFiles:
         for service_file in service_files:
             file_path = BACKEND_DIR / "app" / "services" / service_file
             assert file_path.exists(), f"app/services/{service_file} should exist"
+
+
+class TestFrontendScopeLimitation:
+    """Test that frontend directory contains no implementation.
+    
+    Requirements: 6.1
+    """
+    
+    def test_frontend_directory_exists(self):
+        """Test that frontend directory exists as a placeholder."""
+        frontend_dir = PROJECT_ROOT / "frontend"
+        assert frontend_dir.exists(), "frontend/ directory should exist"
+        assert frontend_dir.is_dir(), "frontend/ should be a directory"
+    
+    def test_frontend_contains_no_implementation(self):
+        """Test that frontend directory contains no implementation files.
+        
+        The frontend directory should only contain a README.md placeholder
+        and no actual implementation files (no .js, .jsx, .ts, .tsx, .vue, etc.).
+        
+        Requirements: 6.1
+        """
+        frontend_dir = PROJECT_ROOT / "frontend"
+        
+        # Implementation file extensions that should NOT be present
+        implementation_extensions = {
+            '.js', '.jsx', '.ts', '.tsx',  # JavaScript/TypeScript
+            '.vue', '.svelte',              # Vue/Svelte
+            '.html', '.css', '.scss',       # HTML/CSS
+            '.json',                        # Config files (package.json, tsconfig.json, etc.)
+        }
+        
+        # Get all files in frontend directory (recursively)
+        all_files = []
+        if frontend_dir.exists():
+            for item in frontend_dir.rglob('*'):
+                if item.is_file():
+                    all_files.append(item)
+        
+        # Check that no implementation files exist
+        implementation_files = [
+            f for f in all_files 
+            if f.suffix.lower() in implementation_extensions
+        ]
+        
+        assert len(implementation_files) == 0, (
+            f"Frontend directory should contain no implementation files. "
+            f"Found: {[str(f.relative_to(frontend_dir)) for f in implementation_files]}"
+        )
+    
+    def test_frontend_contains_only_readme(self):
+        """Test that frontend directory contains only README.md.
+        
+        Requirements: 6.1
+        """
+        frontend_dir = PROJECT_ROOT / "frontend"
+        
+        # Get all files in frontend directory (non-recursive, just top level)
+        files_in_frontend = [
+            f for f in frontend_dir.iterdir() 
+            if f.is_file()
+        ]
+        
+        # Should only contain README.md
+        assert len(files_in_frontend) == 1, (
+            f"Frontend directory should contain only README.md. "
+            f"Found: {[f.name for f in files_in_frontend]}"
+        )
+        
+        assert files_in_frontend[0].name == "README.md", (
+            "The only file in frontend directory should be README.md"
+        )
+    
+    def test_frontend_readme_indicates_not_implemented(self):
+        """Test that frontend README.md indicates frontend is not implemented.
+        
+        Requirements: 6.1
+        """
+        frontend_readme = PROJECT_ROOT / "frontend" / "README.md"
+        
+        assert frontend_readme.exists(), "frontend/README.md should exist"
+        
+        content = frontend_readme.read_text().lower()
+        
+        # Check that README indicates frontend is not implemented
+        not_implemented_indicators = [
+            "not implemented",
+            "placeholder",
+            "out of scope",
+            "not included"
+        ]
+        
+        has_indicator = any(indicator in content for indicator in not_implemented_indicators)
+        
+        assert has_indicator, (
+            "frontend/README.md should indicate that frontend is not implemented"
+        )
