@@ -346,6 +346,8 @@ class TestAttemptSchemas:
             student_id=41,
             assignment_id=51,
             concept_id=21,
+            score=None,
+            evaluation=None,
             submitted_at=now
         )
         assert attempt.score is None

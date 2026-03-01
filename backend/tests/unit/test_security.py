@@ -1,6 +1,7 @@
-"""Property-based tests for security utilities."""
+"""Property-based tests and unit tests for security utilities."""
 import pytest
 from hypothesis import given, strategies as st
+from datetime import timedelta, datetime
 from app.core.security import hash_password, verify_password, create_access_token, decode_access_token
 
 
@@ -83,3 +84,138 @@ def test_rbac_enforcement_property():
     # Verify require_role returns a dependency function
     role_checker = require_role(["teacher"])
     assert callable(role_checker), "require_role should return a callable dependency"
+
+
+
+# ============================================================================
+# Unit Tests for Edge Cases
+# ============================================================================
+
+class TestPasswordHashingEdgeCases:
+    """Unit tests for password hashing edge cases."""
+    
+    def test_empty_password(self):
+        """Test hashing an empty password."""
+        password = ""
+        hashed = hash_password(password)
+        assert hashed != password
+        assert verify_password(password, hashed)
+    
+    def test_very_long_password(self):
+        """Test hashing a very long password (>72 bytes, bcrypt limit)."""
+        password = "a" * 200
+        hashed = hash_password(password)
+        assert verify_password(password, hashed)
+    
+    def test_special_characters_password(self):
+        """Test hashing password with special characters."""
+        password = "P@ssw0rd!#$%^&*()_+-=[]{}|;:',.<>?/~`"
+        hashed = hash_password(password)
+        assert verify_password(password, hashed)
+    
+    def test_unicode_password(self):
+        """Test hashing password with unicode characters."""
+        password = "пароль密码🔒"
+        hashed = hash_password(password)
+        assert verify_password(password, hashed)
+    
+    def test_wrong_password_verification(self):
+        """Test that wrong password fails verification."""
+        password = "correct_password"
+        wrong_password = "wrong_password"
+        hashed = hash_password(password)
+        assert not verify_password(wrong_password, hashed)
+    
+    def test_case_sensitive_password(self):
+        """Test that password verification is case-sensitive."""
+        password = "Password123"
+        hashed = hash_password(password)
+        assert not verify_password("password123", hashed)
+        assert not verify_password("PASSWORD123", hashed)
+
+
+class TestJWTEdgeCases:
+    """Unit tests for JWT token edge cases."""
+    
+    def test_expired_token(self):
+        """Test that expired tokens are rejected."""
+        data = {"user_id": 1, "role": "student"}
+        # Create token that expires immediately
+        token = create_access_token(data, expires_delta=timedelta(seconds=-1))
+        decoded = decode_access_token(token)
+        assert decoded is None, "Expired token should be rejected"
+    
+    def test_token_with_custom_expiration(self):
+        """Test creating token with custom expiration time."""
+        data = {"user_id": 1, "role": "student"}
+        custom_delta = timedelta(minutes=60)
+        token = create_access_token(data, expires_delta=custom_delta)
+        decoded = decode_access_token(token)
+        assert decoded is not None
+        assert decoded["user_id"] == 1
+    
+    def test_malformed_token(self):
+        """Test that malformed tokens are rejected."""
+        malformed_tokens = [
+            "not.a.token",
+            "invalid",
+            "",
+            "a.b",
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.invalid.signature",
+        ]
+        for token in malformed_tokens:
+            decoded = decode_access_token(token)
+            assert decoded is None, f"Malformed token '{token}' should be rejected"
+    
+    def test_token_with_empty_data(self):
+        """Test creating token with empty data."""
+        data = {}
+        token = create_access_token(data)
+        decoded = decode_access_token(token)
+        assert decoded is not None
+        assert "exp" in decoded
+    
+    def test_token_with_complex_data(self):
+        """Test creating token with complex nested data."""
+        data = {
+            "user_id": 123,
+            "role": "teacher",
+            "permissions": ["read", "write", "delete"],
+            "metadata": {"department": "Math", "level": 5}
+        }
+        token = create_access_token(data)
+        decoded = decode_access_token(token)
+        assert decoded is not None
+        assert decoded["user_id"] == 123
+        assert decoded["role"] == "teacher"
+        assert decoded["permissions"] == ["read", "write", "delete"]
+        assert decoded["metadata"]["department"] == "Math"
+    
+    def test_token_without_expiration_delta(self):
+        """Test creating token without explicit expiration (uses default)."""
+        data = {"user_id": 1, "role": "student"}
+        token = create_access_token(data)
+        decoded = decode_access_token(token)
+        assert decoded is not None
+        assert "exp" in decoded
+        # Verify expiration is in the future
+        exp_timestamp = decoded["exp"]
+        assert exp_timestamp > datetime.utcnow().timestamp()
+    
+    def test_tampered_token(self):
+        """Test that tampered tokens are rejected."""
+        data = {"user_id": 1, "role": "student"}
+        token = create_access_token(data)
+        # Tamper with the token by changing a character
+        tampered_token = token[:-5] + "XXXXX"
+        decoded = decode_access_token(tampered_token)
+        assert decoded is None, "Tampered token should be rejected"
+    
+    def test_token_with_none_values(self):
+        """Test creating token with None values."""
+        data = {"user_id": None, "role": None}
+        token = create_access_token(data)
+        decoded = decode_access_token(token)
+        assert decoded is not None
+        assert decoded["user_id"] is None
+        assert decoded["role"] is None
