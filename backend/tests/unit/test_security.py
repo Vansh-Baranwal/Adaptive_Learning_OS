@@ -104,8 +104,12 @@ class TestPasswordHashingEdgeCases:
     def test_very_long_password(self):
         """Test hashing a very long password (>72 bytes, bcrypt limit)."""
         password = "a" * 200
+        # Bcrypt truncates passwords to 72 bytes, so we test that it works
+        # and that the first 72 bytes are what matters
         hashed = hash_password(password)
         assert verify_password(password, hashed)
+        # Verify that only first 72 bytes matter (bcrypt behavior)
+        assert verify_password("a" * 72, hashed)
     
     def test_special_characters_password(self):
         """Test hashing password with special characters."""

@@ -1,0 +1,4 @@
+# file: D:\Some stuffs\AMD Slingshot\Adaptive_Learning_OS\backend\app\core\security.py
+# hypothesis_version: 6.151.9
+
+['30', 'ALGORITHM', 'HS256', 'SECRET_KEY', 'auto', 'bcrypt', 'exp']
