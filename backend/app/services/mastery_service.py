@@ -1,7 +1,8 @@
 """Mastery Service - Handles mastery tracking and BKT updates."""
 from sqlalchemy.orm import Session
-from typing import Optional, List
+from typing import Optional, List, Dict
 from app.models.mastery import Mastery
+from app.models.concept import Concept
 from app.ai.mastery_engine import MasteryEngine
 
 
@@ -30,10 +31,12 @@ class MasteryService:
         Returns:
             Mastery record or None if not found
         """
-        # Placeholder - will be implemented
-        raise NotImplementedError("Get mastery will be implemented")
+        return self.db.query(Mastery).filter(
+            Mastery.student_id == student_id,
+            Mastery.concept_id == concept_id
+        ).first()
     
-    def update_mastery(self, student_id: int, concept_id: int, attempt_data: dict) -> Mastery:
+    def update_mastery(self, student_id: int, concept_id: int, attempt_data: Dict) -> Mastery:
         """
         Update mastery based on new attempt using BKT.
         
@@ -42,13 +45,52 @@ class MasteryService:
         Args:
             student_id: Student ID
             concept_id: Concept ID
-            attempt_data: Attempt result data (score, correct/incorrect)
+            attempt_data: Attempt result data. Should contain:
+                - 'correct': bool indicating if attempt was correct
+                - 'score': optional float score
             
         Returns:
             Updated mastery record
         """
-        # Placeholder - will be implemented in Phase 2
-        raise NotImplementedError("BKT mastery update will be implemented in Phase 2")
+        # Get or create mastery record
+        mastery = self.get_student_mastery(student_id, concept_id)
+        
+        if mastery is None:
+            # Create new mastery record with default BKT parameters
+            mastery = Mastery(
+                student_id=student_id,
+                concept_id=concept_id,
+                p_l=0.5,  # Initial mastery probability
+                p_t=0.1,  # Learning rate
+                p_g=0.25,  # Guess probability
+                p_s=0.1,  # Slip probability
+                attempt_count=0
+            )
+            self.db.add(mastery)
+        
+        # Prepare attempt result for BKT engine
+        bkt_attempt = {
+            'correct': attempt_data.get('correct', False),
+            'p_t': mastery.p_t,
+            'p_g': mastery.p_g,
+            'p_s': mastery.p_s
+        }
+        
+        # Update mastery using BKT
+        new_p_l = self.mastery_engine.update_mastery_belief(
+            current_mastery=mastery.p_l,
+            attempt_result=bkt_attempt
+        )
+        
+        # Update mastery record
+        mastery.p_l = new_p_l
+        mastery.attempt_count += 1
+        
+        # Commit changes
+        self.db.commit()
+        self.db.refresh(mastery)
+        
+        return mastery
     
     def predict_mastery(self, student_id: int, concept_id: int) -> float:
         """
@@ -61,19 +103,51 @@ class MasteryService:
         Returns:
             Predicted mastery probability (0.0 to 1.0)
         """
-        # Placeholder - will be implemented in Phase 2
-        raise NotImplementedError("Mastery prediction will be implemented in Phase 2")
+        mastery = self.get_student_mastery(student_id, concept_id)
+        
+        if mastery is None:
+            # No mastery record, return default
+            return 0.5
+        
+        # Current mastery is the prediction
+        return mastery.p_l
     
-    def get_weak_concepts(self, student_id: int, threshold: float = 0.5) -> List[dict]:
+    def get_weak_concepts(self, student_id: int, threshold: float = 0.5) -> List[Dict]:
         """
         Get concepts where student has low mastery.
         
+        Identifies concepts that need attention based on mastery probability.
+        Returns concepts sorted by mastery level (lowest first).
+        
         Args:
             student_id: Student ID
-            threshold: Mastery threshold (default 0.5)
+            threshold: Mastery threshold below which concepts are considered weak (default 0.5)
             
         Returns:
-            List of weak concepts with mastery data
+            List of dicts containing weak concept data:
+            - concept_id: int
+            - concept_name: str
+            - mastery_level: float (p_l value)
+            - attempt_count: int
         """
-        # Placeholder - will be implemented in Phase 2
-        raise NotImplementedError("Weak concept detection will be implemented in Phase 2")
+        # Query mastery records below threshold
+        weak_masteries = self.db.query(Mastery, Concept).join(
+            Concept, Mastery.concept_id == Concept.id
+        ).filter(
+            Mastery.student_id == student_id,
+            Mastery.p_l < threshold
+        ).order_by(
+            Mastery.p_l.asc()  # Lowest mastery first
+        ).all()
+        
+        # Format results
+        weak_concepts = []
+        for mastery, concept in weak_masteries:
+            weak_concepts.append({
+                'concept_id': concept.id,
+                'concept_name': concept.name,
+                'mastery_level': mastery.p_l,
+                'attempt_count': mastery.attempt_count
+            })
+        
+        return weak_concepts
