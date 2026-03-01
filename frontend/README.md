@@ -1,72 +1,36 @@
-# Frontend - Not Implemented
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-This directory is a placeholder for the frontend implementation.
+## Getting Started
 
-## Scope
+First, run the development server:
 
-The current phase of the Adaptive Learning OS (ALOS) project focuses exclusively on backend architecture scaffolding. The frontend implementation is out of scope for this phase.
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
 
-## Planned Technology Stack
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-When implemented, the frontend will use:
-- **Framework**: Next.js (React)
-- **Language**: TypeScript
-- **Styling**: TailwindCSS
-- **State Management**: React Context / Redux
-- **API Communication**: Axios / Fetch API
+You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
-## Backend API
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
 
-The backend API is available at `/api/v1` and provides the following endpoints:
+## Learn More
 
-### Authentication
-- `POST /api/v1/auth/register` - Register new user
-- `POST /api/v1/auth/login` - Login and get JWT token
-- `GET /api/v1/auth/me` - Get current user info
+To learn more about Next.js, take a look at the following resources:
 
-### Students
-- `GET /api/v1/students/{student_id}/mastery` - Get student mastery levels
-- `GET /api/v1/students/{student_id}/attempts` - Get student attempts
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
 
-### Teachers
-- `GET /api/v1/teachers/{teacher_id}/analytics` - Get teacher analytics
-- `GET /api/v1/teachers/{teacher_id}/students/weak-concepts` - Get weak concepts
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
 
-### Concepts
-- `POST /api/v1/concepts/` - Create concept
-- `GET /api/v1/concepts/{concept_id}/prerequisites` - Get prerequisites
-- `GET /api/v1/concepts/{concept_id}/dependents` - Get dependents
+## Deploy on Vercel
 
-### Assignments
-- `POST /api/v1/assignments/` - Create assignment
-- `GET /api/v1/assignments/{assignment_id}` - Get assignment
-- `GET /api/v1/assignments/` - List assignments
-- `PUT /api/v1/assignments/{assignment_id}` - Update assignment
-- `DELETE /api/v1/assignments/{assignment_id}` - Delete assignment
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
-### Attempts
-- `POST /api/v1/attempts/` - Submit attempt
-- `GET /api/v1/attempts/{attempt_id}` - Get attempt
-
-### Mastery
-- `GET /api/v1/mastery/student/{student_id}/concept/{concept_id}` - Get mastery
-- `GET /api/v1/mastery/student/{student_id}/weak-concepts` - Get weak concepts
-- `GET /api/v1/mastery/student/{student_id}/predict/{concept_id}` - Predict mastery
-
-## API Documentation
-
-Interactive API documentation is available at:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
-
-## Future Implementation
-
-Frontend implementation will include:
-- User authentication and authorization
-- Student dashboard with mastery tracking
-- Teacher dashboard with analytics
-- Concept management interface
-- Assignment creation and management
-- Attempt submission interface
-- Real-time mastery predictions
-- Learning path visualization
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
